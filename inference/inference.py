@@ -8,11 +8,26 @@ import torch
 import os
 import sys
 import time
+import logging
 from typing import List
 
 from transformers import LlamaTokenizer
 from safety_utils import get_safety_checker
 from model_utils import load_model, load_peft_model, load_llama_from_config
+
+import openvino.frontend.pytorch.torchdynamo.backend
+
+os.environ["PYTORCH_TRACING_MODE"] = "TORCHFX"
+os.environ["OPENVINO_DEVICE"] = "CPU"
+os.environ["OPENVINO_TORCH_MODEL_CACHING"] = "1"
+
+torch._logging.set_logs(dynamo=logging.DEBUG, dynamic=logging.DEBUG, graph=True)
+torch._dynamo.config.assume_static_by_default = False
+torch._dynamo.config.dynamic_shapes = True
+torch._dynamo.config.automatic_dynamic_shapes = False
+torch._dynamo.config.force_parameter_static_shapes = False
+torch._dynamo.config.suppress_errors = True
+# torch._dynamo.config.force_nn_module_property_static_shapes = False
 
 def main(
     model_name,
@@ -49,10 +64,11 @@ def main(
         sys.exit(1)
     
     # Set the seeds for reproducibility
-    torch.cuda.manual_seed(seed)
+    # torch.cuda.manual_seed(seed)
     torch.manual_seed(seed)
     
     model = load_model(model_name, quantization)
+    # model.generate = torch.compile(model.generate, backend='openvino', dynamic=True)
     if peft_model:
         model = load_peft_model(model, peft_model)
 
@@ -105,7 +121,8 @@ def main(
     model.eval()
     batch = tokenizer(user_prompt, padding='max_length', truncation=True,max_length=max_padding_length,return_tensors="pt")
 
-    batch = {k: v.to("cuda") for k, v in batch.items()}
+    # batch = {k: v.to("cuda") for k, v in batch.items()}
+    batch = {k: v for k, v in batch.items()}
     start = time.perf_counter()
     with torch.no_grad():
         outputs = model.generate(
