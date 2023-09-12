@@ -7,11 +7,8 @@ import fire
 import os
 import sys
 import time
-<<<<<<< HEAD:inference/inference.py
 import logging
 from typing import List
-=======
->>>>>>> c33ea3cacb607a8b3cf9090b756504f869db8b9c:examples/inference.py
 
 import torch
 from transformers import LlamaTokenizer
